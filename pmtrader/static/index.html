@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><circle cx=%228%22 cy=%228%22 r=%226%22 fill=%22%233ddc97%22/></svg>">
+<title>PM·RL — Prediction Market Trader</title>
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #12151c; --panel2: #171b24; --line: #222838;
+    --text: #e7e9ef; --muted: #8b92a5; --dim: #5d6478;
+    --yes: #3ddc97; --no: #ff6b6b; --blue: #5b9cff; --amber: #f5b84b; --violet: #b18cff;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 28px; padding: 14px 28px;
+           border-bottom: 1px solid var(--line); position: sticky; top: 0; background: rgba(11,13,18,.92);
+           backdrop-filter: blur(8px); z-index: 5; }
+  .brand { font-weight: 700; letter-spacing: .3px; font-size: 15px; }
+  .brand span { color: var(--yes); }
+  nav { display: flex; gap: 4px; }
+  nav button { background: none; border: 0; color: var(--muted); padding: 7px 14px; border-radius: 7px;
+               font: inherit; cursor: pointer; }
+  nav button:hover { color: var(--text); background: var(--panel); }
+  nav button.active { color: var(--text); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
+  .status { margin-left: auto; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+  .dot.ok { background: var(--yes); box-shadow: 0 0 8px var(--yes); }
+  .dot.warn { background: var(--amber); }
+  main { padding: 24px 28px 60px; max-width: 1320px; margin: 0 auto; }
+  .tab { display: none; } .tab.active { display: block; }
+  .grid { display: grid; gap: 16px; }
+  .g-2 { grid-template-columns: 360px 1fr; }
+  .g-3 { grid-template-columns: repeat(3, 1fr); }
+  .g-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 980px) { .g-2, .g-3, .g-4 { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .card h3 { margin: 0 0 14px; font-size: 12px; font-weight: 600; color: var(--muted);
+             text-transform: uppercase; letter-spacing: .8px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 5px; }
+  label small { color: var(--dim); }
+  input[type=number], select { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line);
+         border-radius: 8px; padding: 8px 10px; font: 13px var(--mono); }
+  input:focus, select:focus { outline: none; border-color: var(--blue); }
+  input[type=range] { width: 100%; accent-color: var(--blue); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn { background: var(--blue); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px;
+         font: 600 13px inherit; cursor: pointer; }
+  .btn:hover { filter: brightness(1.1); } .btn:disabled { opacity: .5; cursor: default; }
+  .btn.ghost { background: var(--panel2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+  .btn.danger { background: #3a1b20; color: var(--no); }
+  .actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .kpi .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; }
+  .kpi .value { font: 600 26px var(--mono); margin-top: 4px; }
+  .kpi .sub { font-size: 12px; color: var(--dim); margin-top: 2px; font-family: var(--mono); }
+  .pos { color: var(--yes); } .neg { color: var(--no); } .muted { color: var(--muted); }
+  .verdict { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 12px;
+             border: 1px solid var(--line); background: linear-gradient(90deg, var(--panel2), var(--panel)); }
+  .pill { font: 700 13px var(--mono); padding: 6px 12px; border-radius: 999px; letter-spacing: .5px; }
+  .pill.YES { background: rgba(61,220,151,.14); color: var(--yes); }
+  .pill.NO { background: rgba(255,107,107,.14); color: var(--no); }
+  .pill.PASS, .pill.HOLD { background: rgba(139,146,165,.14); color: var(--muted); }
+  .verdict .order { font: 600 16px var(--mono); }
+  .bars .bar { display: grid; grid-template-columns: 100px 1fr 54px; align-items: center; gap: 10px; margin: 7px 0;
+               font-size: 12px; }
+  .bars .track { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .bars .fill { height: 100%; border-radius: 4px; background: var(--blue); transition: width .3s; }
+  .bars .num { font-family: var(--mono); text-align: right; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--line); font-family: var(--mono); }
+  th { color: var(--muted); font: 600 11px inherit; text-transform: uppercase; letter-spacing: .6px; }
+  th:first-child, td:first-child { text-align: left; font-family: inherit; }
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; width: 100%; overflow: visible; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .tip { position: absolute; pointer-events: none; background: #0e1118; border: 1px solid var(--line);
+         border-radius: 8px; padding: 7px 10px; font: 11px var(--mono); white-space: nowrap; display: none; z-index: 3; }
+  .note { font-size: 12px; color: var(--dim); margin-top: 10px; line-height: 1.5; }
+  .ev-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .side { border-radius: 10px; padding: 14px; background: var(--bg); border: 1px solid var(--line); }
+  .side .h { font-size: 11px; letter-spacing: .8px; text-transform: uppercase; font-weight: 700; }
+  .side dl { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; margin: 10px 0 0; font-size: 12px; }
+  .side dt { color: var(--muted); } .side dd { margin: 0; font-family: var(--mono); text-align: right; }
+  .progress { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; margin-top: 12px; }
+  .progress div { height: 100%; background: var(--blue); width: 0; transition: width .3s; }
+  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--blue);
+          border-radius: 50%; animation: s .7s linear infinite; vertical-align: -2px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  code { font-family: var(--mono); font-size: 12px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">PM<span>·</span>RL Trader</div>
+  <nav>
+    <button data-tab="pricer" class="active">Pricer</button>
+    <button data-tab="sim">Simulator</button>
+    <button data-tab="backtest">Backtest</button>
+    <button data-tab="train">Training</button>
+  </nav>
+  <div class="status"><span class="dot" id="dot"></span><span id="statusText">connecting…</span>
+    <a href="/docs" target="_blank" style="color:var(--blue);margin-left:10px;text-decoration:none">API docs ↗</a></div>
+</header>
+
+<main>
+<!-- PRICER -->
+<section class="tab active" id="tab-pricer">
+  <div class="grid g-2">
+    <div class="card">
+      <h3>Contract</h3>
+      <div class="row">
+        <div><label>YES bid ($)</label><input id="bid" type="number" step="0.01" value="0.41"></div>
+        <div><label>YES ask ($)</label><input id="ask" type="number" step="0.01" value="0.43"></div>
+      </div>
+      <label>Your forecast P(YES) <small>— polls, sportsbook, own model; blank = market only</small></label>
+      <input id="signal" type="number" step="0.01" min="0.01" max="0.99" value="0.58">
+      <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input id="override" type="checkbox" style="accent-color:var(--blue)">
+        <span>Price on my forecast directly<br><small>off = ML model blends it with the market</small></span></label>
+      <div class="row">
+        <div><label>Mid ~3 periods ago <small>(opt.)</small></label><input id="prev" type="number" step="0.01" placeholder="—"></div>
+        <div><label>Payout ($)</label><input id="payout" type="number" step="0.01" value="1.00"></div>
+      </div>
+      <label>Time remaining: <b id="tfv">50%</b> of market life</label>
+      <input id="tf" type="range" min="0" max="1" step="0.01" value="0.5">
+      <div class="row">
+        <div><label>Fee rate <small>(Kalshi ≈ 0.07)</small></label><input id="fee" type="number" step="0.01" value="0.07"></div>
+        <div><label>Min edge / $1</label><input id="minedge" type="number" step="0.005" value="0.00"></div>
+      </div>
+      <h3 style="margin-top:20px">Position</h3>
+      <div class="row">
+        <div><label>Current (+YES / −NO)</label><input id="pos" type="number" step="1" value="0"></div>
+        <div><label>Max contracts</label><input id="maxpos" type="number" step="1" value="100"></div>
+      </div>
+      <div class="actions"><button class="btn" id="priceBtn">Price &amp; recommend</button></div>
+      <p class="note">Updates live as you edit. The model is trained on simulated markets; feed it real quotes, but
+        treat recommendations as a research signal, not advice.</p>
+    </div>
+
+    <div class="grid" style="align-content:start">
+      <div class="verdict">
+        <span class="pill PASS" id="vSide">—</span>
+        <div><div class="muted" style="font-size:12px">RL agent: <b id="vAction">—</b></div>
+          <div class="order" id="vOrder">—</div></div>
+        <div style="margin-left:auto;text-align:right">
+          <div class="muted" style="font-size:12px">Agent confidence</div>
+          <div class="order" id="vConf">—</div></div>
+      </div>
+      <div class="grid g-4">
+        <div class="card kpi"><div class="label">P(YES) used</div><div class="value" id="kProb">—</div><div class="sub" id="kProbSub"></div></div>
+        <div class="card kpi"><div class="label">Market implied</div><div class="value" id="kMid">—</div><div class="sub">mid of bid/ask</div></div>
+        <div class="card kpi"><div class="label">Edge</div><div class="value" id="kEdge">—</div><div class="sub">model − market</div></div>
+        <div class="card kpi"><div class="label">Best EV / contract</div><div class="value" id="kEV">—</div><div class="sub" id="kEVSub"></div></div>
+      </div>
+      <div class="grid" style="grid-template-columns:1.3fr 1fr">
+        <div class="card">
+          <h3>Expected value by side (after fees)</h3>
+          <div class="ev-split">
+            <div class="side"><div class="h pos">Buy YES</div><dl id="sideYes"></dl></div>
+            <div class="side"><div class="h neg">Buy NO</div><dl id="sideNo"></dl></div>
+          </div>
+        </div>
+        <div class="card"><h3>Agent policy π(a | s)</h3><div class="bars" id="policyBars"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SIMULATOR -->
+<section class="tab" id="tab-sim">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <h3 style="margin:0">Agent trading one simulated market</h3>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <span class="muted" style="font-size:12px">seed</span>
+        <input id="simSeed" type="number" value="7" style="width:90px">
+        <button class="btn ghost" id="simPrev">←</button><button class="btn ghost" id="simNext">→</button>
+        <button class="btn" id="simBtn">Run</button>
+      </div>
+    </div>
+    <div class="grid g-4" style="margin-bottom:14px">
+      <div class="kpi"><div class="label">Outcome</div><div class="value" id="sOut">—</div></div>
+      <div class="kpi"><div class="label">Final PnL</div><div class="value" id="sPnl">—</div><div class="sub">100-contract max</div></div>
+      <div class="kpi"><div class="label">Trades</div><div class="value" id="sTrades">—</div></div>
+      <div class="kpi"><div class="label">Avg |edge| seen</div><div class="value" id="sEdge">—</div></div>
+    </div>
+    <div class="chart" id="simPrice"></div>
+    <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:18px">
+      <div><h3>Position (contracts, +YES / −NO)</h3><div class="chart" id="simPos"></div></div>
+      <div><h3>Cumulative PnL ($)</h3><div class="chart" id="simPnl"></div></div>
+    </div>
+    <p class="note">“True prob” is the simulator's hidden probability — the agent never sees it. It sees the market
+      price, your signal, the ML model's estimate, time left, and its own position.</p>
+  </div>
+</section>
+
+<!-- BACKTEST -->
+<section class="tab" id="tab-backtest">
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:end;gap:12px;flex-wrap:wrap">
+      <div><label>Markets</label><input id="btN" type="number" value="3000" style="width:120px"></div>
+      <div><label>Seed <small>(unseen in training)</small></label><input id="btSeed" type="number" value="12345" style="width:120px"></div>
+      <button class="btn" id="btBtn">Run backtest</button>
+      <span id="btStatus" class="muted" style="font-size:12px"></span>
+    </div>
+  </div>
+  <div class="grid g-3" id="btCards"></div>
+  <div class="card" style="margin-top:16px"><h3>Cumulative PnL across markets ($)</h3><div class="chart" id="btChart"></div></div>
+  <div class="card" style="margin-top:16px"><h3>Metrics</h3><div id="btTable"></div>
+    <p class="note">Each market allows up to 100 contracts (≤ $100 at risk). ROI = total PnL ÷ ($100 × markets).
+      Sharpe is per-market (mean ÷ std of market PnL); t-stat tests whether mean PnL &gt; 0.</p></div>
+</section>
+
+<!-- TRAINING -->
+<section class="tab" id="tab-train">
+  <div class="grid g-2">
+    <div class="card">
+      <h3>PPO training</h3>
+      <label>Iterations <small>(each = 256 markets × 40 steps)</small></label>
+      <input id="trIters" type="number" value="200">
+      <label>Mode</label>
+      <select id="trMode"><option value="finetune">Fine-tune current agent</option><option value="fresh">Train from scratch</option></select>
+      <label>Seed</label><input id="trSeed" type="number" value="0">
+      <div class="actions"><button class="btn" id="trBtn">Start</button><button class="btn danger" id="trStop">Stop</button></div>
+      <div class="progress"><div id="trBar"></div></div>
+      <p class="note" id="trText">Idle.</p>
+      <p class="note">Algorithm: PPO with clipped surrogate, GAE(λ=0.95), entropy bonus annealed 0.10→0.002,
+        actor/critic MLPs (2×128, tanh). Reward = edge captured on each fill minus fees (unbiased, low-variance
+        decomposition of realised PnL). Saved to <code>models/ppo_agent.json</code> on completion.</p>
+    </div>
+    <div class="card">
+      <h3>Learning curve</h3>
+      <div class="chart" id="trChart"></div>
+      <h3 style="margin-top:20px">Policy entropy</h3>
+      <div class="chart" id="trEnt"></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const C = { yes:'#3ddc97', no:'#ff6b6b', blue:'#5b9cff', amber:'#f5b84b', violet:'#b18cff', muted:'#8b92a5' };
+const fmt$ = (v, d=2) => (v < 0 ? '−$' : '$') + Math.abs(v).toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d});
+const fmtPct = (v, d=1) => (v*100).toFixed(d) + '%';
+const sgn = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) } : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.detail ? (typeof j.detail === 'string' ? j.detail : j.detail.map(d => d.msg).join('; ')) : r.statusText);
+  return j;
+}
+
+/* ---------- tiny SVG line chart ---------- */
+function lineChart(el, series, o = {}) {
+  const W = el.clientWidth || 600, H = o.height || 260, P = { l: 52, r: 14, t: 10, b: 26 };
+  const xs = series.flatMap(s => s.x), ys = series.flatMap(s => s.y).filter(Number.isFinite);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let y0 = o.yMin ?? Math.min(...ys), y1 = o.yMax ?? Math.max(...ys);
+  if (o.zero) { y0 = Math.min(y0, 0); y1 = Math.max(y1, 0); }
+  if (y0 === y1) { y0 -= 1; y1 += 1; }
+  const pad = (y1 - y0) * 0.06; if (o.yMin === undefined) y0 -= pad; if (o.yMax === undefined) y1 += pad;
+  if (x0 === x1) x1 = x0 + 1;
+  const X = v => P.l + (v - x0) / (x1 - x0) * (W - P.l - P.r);
+  const Y = v => P.t + (1 - (v - y0) / (y1 - y0)) * (H - P.t - P.b);
+  const yf = o.yFmt || (v => Math.abs(y1 - y0) < 5 ? v.toFixed(2) : Math.round(v).toLocaleString());
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = y0 + (y1 - y0) * i / 4, y = Y(v);
+    g += `<line x1="${P.l}" x2="${W-P.r}" y1="${y}" y2="${y}" stroke="#222838"/>` +
+         `<text x="${P.l-8}" y="${y+4}" fill="#5d6478" font-size="10" text-anchor="end" font-family="ui-monospace,monospace">${yf(v)}</text>`;
+  }
+  for (let i = 0; i <= 5; i++) {
+    const v = x0 + (x1 - x0) * i / 5;
+    g += `<text x="${X(v)}" y="${H-6}" fill="#5d6478" font-size="10" text-anchor="middle" font-family="ui-monospace,monospace">${Math.round(v)}</text>`;
+  }
+  if (o.zero && y0 < 0 && y1 > 0) g += `<line x1="${P.l}" x2="${W-P.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="#3a4256" stroke-dasharray="3 3"/>`;
+  const paths = series.map(s => {
+    let d = '';
+    s.x.forEach((xv, i) => {
+      if (!Number.isFinite(s.y[i])) return;
+      if (s.step && i > 0) d += `L${X(xv)},${Y(s.y[i-1])}`;
+      d += (d ? 'L' : 'M') + X(xv) + ',' + Y(s.y[i]);
+    });
+    const area = s.fill ? `<path d="${d}L${X(s.x.at(-1))},${Y(Math.max(y0,0))}L${X(s.x[0])},${Y(Math.max(y0,0))}Z" fill="${s.color}" opacity=".08"/>` : '';
+    return area + `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.width||2}" ${s.dash?`stroke-dasharray="${s.dash}"`:''} stroke-linejoin="round"/>`;
+  }).join('');
+  const marks = (o.markers || []).map(m => `<circle cx="${X(m.x)}" cy="${Y(m.y)}" r="4" fill="${m.color}" stroke="#0b0d12" stroke-width="1.5"/>`).join('');
+  const legend = series.length > 1 ? `<div class="legend">${series.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('')}</div>` : '';
+  el.innerHTML = legend + `<svg viewBox="0 0 ${W} ${H}" height="${H}">${g}${paths}${marks}<line class="hl" y1="${P.t}" y2="${H-P.b}" stroke="#5d6478" opacity="0"/><rect x="${P.l}" y="${P.t}" width="${W-P.l-P.r}" height="${H-P.t-P.b}" fill="transparent"/></svg><div class="tip"></div>`;
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), hl = el.querySelector('.hl');
+  const ref = series[0];
+  svg.addEventListener('mousemove', e => {
+    const r = svg.getBoundingClientRect(), mx = (e.clientX - r.left) * W / r.width;
+    let bi = 0, bd = Infinity; ref.x.forEach((xv, i) => { const d = Math.abs(X(xv) - mx); if (d < bd) { bd = d; bi = i; } });
+    const xv = ref.x[bi]; hl.setAttribute('x1', X(xv)); hl.setAttribute('x2', X(xv)); hl.setAttribute('opacity', 1);
+    tip.innerHTML = `<div style="color:#8b92a5">${o.xLabel || 'x'} ${xv}</div>` + series.map(s => {
+      const i = s.x.indexOf(xv); return i < 0 ? '' : `<div><span style="color:${s.color}">●</span> ${s.name}: ${(o.tipFmt||yf)(s.y[i])}</div>`; }).join('');
+    tip.style.display = 'block';
+    const left = (X(xv) / W) * r.width; tip.style.left = Math.min(left + 12, r.width - tip.offsetWidth - 4) + 'px';
+    tip.style.top = (legend ? 28 : 6) + 'px';
+  });
+  svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; hl.setAttribute('opacity', 0); });
+}
+
+/* ---------- tabs + status ---------- */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + b.dataset.tab));
+  if (b.dataset.tab === 'sim' && !simLoaded) runSim();
+  if (b.dataset.tab === 'train') loadHistory();
+});
+async function status() {
+  try {
+    const h = await api('/api/health');
+    $('dot').className = 'dot ' + (h.training ? 'warn' : h.agent_trained ? 'ok' : 'warn');
+    $('statusText').textContent = h.training ? 'training…' : h.agent_trained ? 'agent loaded' : 'agent untrained';
+  } catch { $('dot').className = 'dot'; $('statusText').textContent = 'API offline'; }
+}
+
+/* ---------- pricer ---------- */
+const num = id => { const v = $(id).value; return v === '' ? null : parseFloat(v); };
+let priceTimer;
+async function runPrice() {
+  const body = { yes_bid: num('bid'), yes_ask: num('ask'), payout: num('payout') ?? 1, signal_prob: num('signal'),
+    prev_mid: num('prev'), prob_override: $('override').checked ? num('signal') : null, time_frac: parseFloat($('tf').value), fee_rate: num('fee') ?? 0, min_edge: num('minedge') ?? 0,
+    position: num('pos') ?? 0, max_position: num('maxpos') ?? 100 };
+  try {
+    const r = await api('/api/recommend', body), p = r.pricing, pay = p.payout;
+    $('kProb').textContent = fmtPct(p.prob_yes); $('kProbSub').textContent = (body.prob_override ? 'your forecast · ML ' + fmtPct(p.model_prob) : 'ML model') + ' · fair ' + fmt$(p.fair_value_yes);
+    $('kMid').textContent = fmtPct(p.market_mid / pay);
+    $('kEdge').innerHTML = `<span class="${sgn(p.edge)}">${p.edge >= 0 ? '+' : '−'}${Math.abs(p.edge*100).toFixed(1)}¢</span>`;
+    const best = Math.max(p.ev_yes, p.ev_no);
+    $('kEV').innerHTML = `<span class="${sgn(best)}">${fmt$(best, 3)}</span>`;
+    $('kEVSub').textContent = p.side === 'PASS' ? 'no +EV side' : `${p.side}, ROI ${fmtPct(p.side === 'YES' ? p.roi_yes : p.roi_no)}`;
+    const side = (ev, roi, cost, k, fv) => `
+      <dt>Cost</dt><dd>${fmt$(cost)}</dd><dt>Fair value</dt><dd>${fmt$(fv)}</dd>
+      <dt>EV / contract</dt><dd class="${sgn(ev)}">${fmt$(ev, 3)}</dd><dt>ROI</dt><dd class="${sgn(roi)}">${fmtPct(roi)}</dd>
+      <dt>Full Kelly</dt><dd>${fmtPct(k)}</dd><dt>¼ Kelly</dt><dd>${fmtPct(k/4)}</dd>`;
+    $('sideYes').innerHTML = side(p.ev_yes, p.roi_yes, body.yes_ask, p.kelly_yes, p.fair_value_yes);
+    $('sideNo').innerHTML = side(p.ev_no, p.roi_no, pay - body.yes_bid, p.kelly_no, p.fair_value_no);
+    const tgt = r.target_position, cur = r.current_position;
+    const pillSide = tgt > cur ? (tgt > 0 ? 'YES' : 'YES') : tgt < cur ? 'NO' : 'HOLD';
+    $('vSide').className = 'pill ' + pillSide;
+    $('vSide').textContent = tgt === cur ? 'HOLD' : tgt > cur ? '▲ YES' : '▼ NO';
+    $('vAction').textContent = r.action + ` (target ${tgt > 0 ? '+' : ''}${Math.round(tgt)})`;
+    $('vOrder').textContent = r.order;
+    $('vConf').textContent = fmtPct(Math.max(...Object.values(r.action_probs)), 0);
+    $('policyBars').innerHTML = Object.entries(r.action_probs).map(([n, v]) => {
+      const col = n.includes('YES') ? C.yes : n.includes('NO') ? C.no : C.muted;
+      return `<div class="bar"><span>${n}</span><div class="track"><div class="fill" style="width:${v*100}%;background:${col}"></div></div><span class="num">${fmtPct(v,0)}</span></div>`;
+    }).join('');
+  } catch (e) { $('vOrder').textContent = e.message; }
+}
+['bid','ask','signal','override','prev','payout','tf','fee','minedge','pos','maxpos'].forEach(id =>
+  $(id).addEventListener('input', () => { $('tfv').textContent = Math.round($('tf').value*100) + '%';
+    clearTimeout(priceTimer); priceTimer = setTimeout(runPrice, 150); }));
+$('priceBtn').onclick = runPrice;
+
+/* ---------- simulator ---------- */
+let simLoaded = false;
+async function runSim() {
+  simLoaded = true;
+  const r = await api('/api/simulate?seed=' + ($('simSeed').value || 0));
+  const t = r.t;
+  $('sOut').innerHTML = `<span class="${r.outcome === 'YES' ? 'pos' : 'neg'}">${r.outcome}</span>`;
+  $('sPnl').innerHTML = `<span class="${sgn(r.final_pnl)}">${fmt$(r.final_pnl)}</span>`;
+  let trades = 0; for (let i = 1; i < r.position.length; i++) if (r.position[i] !== r.position[i-1]) trades++;
+  $('sTrades').textContent = trades;
+  const edges = r.p_model.slice(0, -1).map((p, i) => Math.abs(p - r.mid[i]));
+  $('sEdge').textContent = (edges.reduce((a, b) => a + b, 0) / edges.length * 100).toFixed(1) + '¢';
+  const markers = [];
+  for (let i = 1; i < r.position.length; i++) if (r.position[i] !== r.position[i-1])
+    markers.push({ x: i - 1, y: r.mid[i-1], color: r.position[i] > r.position[i-1] ? C.yes : C.no });
+  lineChart($('simPrice'), [
+    { name: 'Market mid', x: t, y: r.mid, color: C.blue, width: 2.5 },
+    { name: 'ML model P(YES)', x: t, y: r.p_model, color: C.amber },
+    { name: 'Signal', x: t, y: r.signal, color: C.violet, width: 1, dash: '2 3' },
+    { name: 'True prob (hidden)', x: t, y: r.p_true, color: C.muted, width: 1.5, dash: '6 4' },
+  ], { yMin: 0, yMax: 1, height: 300, xLabel: 'step', markers, yFmt: v => v.toFixed(2) });
+  lineChart($('simPos'), [{ name: 'Position', x: t, y: r.position, color: C.blue, step: true, fill: true }],
+    { height: 180, zero: true, xLabel: 'step', yMin: -100, yMax: 100, yFmt: v => Math.round(v) });
+  lineChart($('simPnl'), [{ name: 'PnL', x: t, y: r.pnl, color: r.final_pnl >= 0 ? C.yes : C.no, fill: true }],
+    { height: 180, zero: true, xLabel: 'step', yFmt: v => v.toFixed(1) });
+}
+$('simBtn').onclick = runSim;
+$('simPrev').onclick = () => { $('simSeed').value = +$('simSeed').value - 1; runSim(); };
+$('simNext').onclick = () => { $('simSeed').value = +$('simSeed').value + 1; runSim(); };
+
+/* ---------- backtest ---------- */
+const SC = { 'PPO agent (RL)': C.yes, 'EV threshold': C.blue, 'Half Kelly': C.amber };
+$('btBtn').onclick = async () => {
+  $('btBtn').disabled = true; $('btStatus').innerHTML = '<span class="spin"></span> simulating…';
+  try {
+    const r = await api('/api/backtest', { n_markets: +$('btN').value, seed: +$('btSeed').value });
+    const R = r.results, names = Object.keys(R);
+    $('btCards').innerHTML = names.map(n => { const m = R[n]; return `<div class="card kpi">
+      <div class="label" style="color:${SC[n]||C.muted}">${n}</div>
+      <div class="value ${sgn(m.total_pnl)}">${fmt$(m.total_pnl, 0)}</div>
+      <div class="sub">ROI ${fmtPct(m.roi_on_capital, 2)} · Sharpe ${m.sharpe_per_market.toFixed(3)} · t ${m.t_stat.toFixed(1)}</div></div>`; }).join('');
+    lineChart($('btChart'), names.map(n => ({ name: n, x: R[n].equity_curve.x, y: R[n].equity_curve.y, color: SC[n] || C.muted })),
+      { height: 320, zero: true, xLabel: 'market', tipFmt: v => fmt$(v, 0) });
+    const rows = [['Total PnL', m => fmt$(m.total_pnl, 0)], ['PnL / market', m => fmt$(m.mean_pnl_per_market)],
+      ['ROI on capital', m => fmtPct(m.roi_on_capital, 2)], ['Sharpe (per market)', m => m.sharpe_per_market.toFixed(3)],
+      ['t-stat', m => m.t_stat.toFixed(1)], ['Hit rate', m => fmtPct(m.hit_rate)], ['Markets traded', m => fmtPct(m.pct_markets_traded)],
+      ['Contracts traded', m => Math.round(m.contracts_traded).toLocaleString()], ['Fees paid', m => fmt$(m.fees_paid, 0)],
+      ['Max drawdown', m => fmt$(m.max_drawdown, 0)]];
+    $('btTable').innerHTML = `<table><tr><th>Metric</th>${names.map(n => `<th style="color:${SC[n]}">${n}</th>`).join('')}</tr>` +
+      rows.map(([l, f]) => `<tr><td>${l}</td>${names.map(n => `<td>${f(R[n])}</td>`).join('')}</tr>`).join('') + '</table>';
+    $('btStatus').textContent = `${r.n_markets.toLocaleString()} markets, seed ${r.seed}`;
+  } catch (e) { $('btStatus').textContent = e.message; }
+  $('btBtn').disabled = false;
+};
+
+/* ---------- training ---------- */
+let trPoll;
+function drawHistory(h) {
+  if (!h || !h.iteration || !h.iteration.length) return;
+  const ma = h.mean_pnl.map((_, i) => { const s = h.mean_pnl.slice(Math.max(0, i - 9), i + 1); return s.reduce((a, b) => a + b, 0) / s.length; });
+  lineChart($('trChart'), [{ name: 'PnL / market', x: h.iteration, y: h.mean_pnl, color: '#3a4a6b', width: 1 },
+    { name: '10-iter avg', x: h.iteration, y: ma, color: C.yes }], { height: 240, zero: true, xLabel: 'iter', yFmt: v => fmt$(v, 1) });
+  lineChart($('trEnt'), [{ name: 'Entropy', x: h.iteration, y: h.entropy, color: C.violet }], { height: 150, yMin: 0, xLabel: 'iter' });
+}
+async function loadHistory() { try { const i = await api('/api/model'); if (!trPoll) drawHistory(i.history); } catch {} }
+async function pollTrain() {
+  const s = await api('/api/train/status');
+  $('trBar').style.width = (s.total ? s.iteration / s.total * 100 : 0) + '%';
+  drawHistory(s.history);
+  if (s.error) $('trText').textContent = 'Error: ' + s.error;
+  else if (s.running) $('trText').innerHTML = `<span class="spin"></span> iteration ${s.iteration}/${s.total}`;
+  else { $('trText').textContent = s.finished ? `Finished ${s.iteration} iterations — agent saved and live.` : 'Idle.';
+    clearInterval(trPoll); trPoll = null; $('trBtn').disabled = false; status(); }
+}
+$('trBtn').onclick = async () => {
+  try {
+    await api('/api/train', { iterations: +$('trIters').value, fresh: $('trMode').value === 'fresh', seed: +$('trSeed').value });
+    $('trBtn').disabled = true; trPoll = setInterval(pollTrain, 1000); status();
+  } catch (e) { $('trText').textContent = e.message; }
+};
+$('trStop').onclick = () => api('/api/train/stop', {});
+
+status(); setInterval(status, 5000); runPrice();
+window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => { if (simLoaded) runSim(); }, 200); });
+</script>
+</body>
+</html>

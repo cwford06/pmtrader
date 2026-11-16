@@ -1,0 +1,13 @@
+{
+ "as_of": "2026-11-13",
+ "n": 79,
+ "vix": 0.19299999237060547,
+ "spy_rv63": 0.1485753694038479,
+ "vix_over_spy_rv": 1.299,
+ "median_market_iv_over_rv63": 1.171,
+ "median_market_iv_over_proxy": 1.001,
+ "suggested_IV_BETA": 0.57,
+ "median_spread_pct": 17.48,
+ "suggested_HAIRCUT": 0.0874,
+ "corr_market_iv_rv63": 0.784
+}

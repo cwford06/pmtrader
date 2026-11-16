@@ -1,0 +1,45 @@
+{
+ "Buy & hold": {
+  "cagr_pct": 19.24,
+  "vol_pct": 18.68,
+  "sharpe": 1.044,
+  "max_dd_pct": -27.95,
+  "total_pct": 297.0,
+  "months": 94
+ },
+ "Covered call ATM": {
+  "cagr_pct": 14.24,
+  "vol_pct": 10.95,
+  "sharpe": 1.28,
+  "max_dd_pct": -21.99,
+  "total_pct": 183.7,
+  "months": 94
+ },
+ "Covered call 5% OTM": {
+  "cagr_pct": 20.32,
+  "vol_pct": 14.02,
+  "sharpe": 1.402,
+  "max_dd_pct": -24.33,
+  "total_pct": 325.9,
+  "months": 94
+ },
+ "ML covered call": {
+  "cagr_pct": 21.11,
+  "vol_pct": 15.42,
+  "sharpe": 1.33,
+  "max_dd_pct": -23.81,
+  "total_pct": 348.3,
+  "months": 94
+ },
+ "_stocks": 499,
+ "_ml_beats_bh_sharpe_pct": 94.4,
+ "_ml_beats_otm5_sharpe_pct": 22.6,
+ "_ml_choices_pct": {
+  "No call": 25.2,
+  "12% OTM": 18.3,
+  "ATM": 15.5,
+  "5% OTM": 14.4,
+  "2% OTM": 14.2,
+  "8% OTM": 12.4
+ }
+}
