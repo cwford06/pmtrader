@@ -43,6 +43,8 @@ class PriceRequest(BaseModel):
 class RecommendRequest(PriceRequest):
     position: float = Field(0, description="Current position in contracts: +YES, -NO")
     max_position: float = Field(100, gt=0, description="Max contracts per market")
+    ev_guardrail: bool = Field(True, description="Never buy a side whose after-fee EV is not above min_edge; "
+                                                 "set false to see the raw agent decision")
 
 
 class BacktestRequest(BaseModel):

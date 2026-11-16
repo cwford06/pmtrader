@@ -11,7 +11,7 @@ import numpy as np
 from .backtest import backtest
 from .env import ACTION_LEVELS, ACTION_NAMES, TradingEnv, make_obs
 from .ppo import PPOAgent, PPOConfig
-from .pricing import Quote, price_contract
+from .pricing import Quote, ev_guardrail, price_contract
 from .prob_model import FEATURES, ProbModel, featurize, train_prob_model
 from .simulator import SimConfig, logit, simulate
 
@@ -95,16 +95,28 @@ class Service:
             value = float(self.agent.value(obs)[0])
         a = int(pi.argmax())
         lvl = ACTION_LEVELS[a]
-        target = pos if np.isnan(lvl) else float(lvl * max_pos)
-        delta = target - pos
-        order = describe_order(pos, target)
+        agent_target = pos if np.isnan(lvl) else float(lvl * max_pos)
+        target, action, reason = agent_target, ACTION_NAMES[a], None
+        if req.get("ev_guardrail", True):
+            ev_yes, ev_no = priced["ev_yes"] / payout, priced["ev_no"] / payout
+            min_edge = req.get("min_edge", 0.0)
+            target = ev_guardrail(pos, agent_target, ev_yes, ev_no, min_edge)
+            if target != agent_target:
+                blocked = "YES" if agent_target > target else "NO"
+                ev = ev_yes if blocked == "YES" else ev_no
+                reason = (f"Blocked buying {blocked}: its EV after fees is {ev * 100:+.2f}¢ per $1, "
+                          f"not above the {min_edge * 100:.2f}¢ minimum")
+                action = "Hold" if target == pos else ("Flat" if target == 0 else f"{ACTION_NAMES[a]} (trimmed)")
         return {
             "pricing": priced,
-            "action": ACTION_NAMES[a],
+            "action": action,
+            "agent_action": ACTION_NAMES[a],
             "action_probs": {n: float(p) for n, p in zip(ACTION_NAMES, pi)},
             "current_position": pos,
+            "agent_target_position": agent_target,
             "target_position": target,
-            "order": order,
+            "order": describe_order(pos, target),
+            "guardrail": {"enabled": bool(req.get("ev_guardrail", True)), "applied": reason is not None, "reason": reason},
             "state_value": value,
             "agent_trained": self.trained,
         }

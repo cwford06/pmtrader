@@ -23,4 +23,4 @@ def test_simulate_and_backtest():
     s = c.get("/api/simulate?seed=3").json()
     assert len(s["mid"]) == len(s["position"]) == 41
     b = c.post("/api/backtest", json={"n_markets": 200, "seed": 1}).json()
-    assert set(b["results"]) == {"PPO agent (RL)", "EV threshold", "Half Kelly"}
+    assert set(b["results"]) == {"PPO agent (RL)", "PPO + EV guardrail", "EV threshold", "Half Kelly"}

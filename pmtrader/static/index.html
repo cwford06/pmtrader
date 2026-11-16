@@ -347,7 +347,7 @@ async function runPrice() {
     $('vSide').className = 'pill ' + pillSide;
     $('vSide').textContent = tgt === cur ? 'HOLD' : tgt > cur ? '▲ YES' : '▼ NO';
     $('vAction').textContent = r.action + ` (target ${tgt > 0 ? '+' : ''}${Math.round(tgt)})`;
-    $('vOrder').textContent = r.order;
+    $('vOrder').textContent = r.order + (r.guardrail && r.guardrail.applied ? ` · agent wanted ${r.agent_action}. ${r.guardrail.reason}` : '');
     $('vConf').textContent = fmtPct(Math.max(...Object.values(r.action_probs)), 0);
     $('policyBars').innerHTML = Object.entries(r.action_probs).map(([n, v]) => {
       const col = n.includes('YES') ? C.yes : n.includes('NO') ? C.no : C.muted;

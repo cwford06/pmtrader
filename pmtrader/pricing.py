@@ -69,6 +69,26 @@ def kelly_fraction(p_win: float, cost: float, payout: float = 1.0) -> float:
     return max(0.0, (p_win * payout - cost) / (payout - cost))
 
 
+def ev_guardrail(position, target, ev_yes, ev_no, min_edge: float = 0.0):
+    """Clip a proposed target position so it never buys a side without positive EV.
+
+    Positions are YES-equivalent contracts: +n holds n YES, -n holds n NO.
+      * Adding YES exposure (target above max(position, 0)) requires ev_yes > min_edge.
+      * Adding NO exposure (target below min(position, 0)) requires ev_no > min_edge.
+      * Moving toward flat, i.e. selling what is already held, is always allowed: it
+        reduces risk and doesn't place a new bet.
+    A flip from YES to NO is split the same way: the sale of YES goes through, and the
+    purchase of NO only if NO has edge. ev_yes and ev_no are per contract, after fees, per
+    $1 of payout, as returned by price_contract. Works on scalars and numpy arrays.
+    """
+    pos = np.asarray(position, dtype=float)
+    tgt = np.asarray(target, dtype=float)
+    max_long = np.where(np.asarray(ev_yes) > min_edge, np.inf, np.maximum(pos, 0.0))
+    max_short = np.where(np.asarray(ev_no) > min_edge, -np.inf, np.minimum(pos, 0.0))
+    out = np.clip(tgt, max_short, max_long)
+    return float(out) if out.ndim == 0 else out
+
+
 def price_contract(
     prob_yes: float,
     quote: Quote,

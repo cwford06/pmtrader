@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 
 from .env import TradingEnv
-from .pricing import kalshi_style_fee
+from .pricing import ev_guardrail, kalshi_style_fee
 from .simulator import SimConfig, simulate
 
 
@@ -57,6 +57,16 @@ def rl_policy(agent):
     return f
 
 
+def guarded_rl_policy(agent, min_edge=0.0):
+    """The PPO agent with the EV guardrail: it may not buy a side without positive after-fee EV."""
+    raw = rl_policy(agent)
+
+    def f(env):
+        _, _, _, ey, en = _evs(env)
+        return ev_guardrail(env.q, raw(env), ey, en, min_edge)
+    return f
+
+
 def run_policy(env: TradingEnv, batch, policy):
     env.reset(batch)
     done = False
@@ -94,6 +104,7 @@ def backtest(agent, prob_model, n_markets=2000, seed=12345, cfg: SimConfig | Non
     env = TradingEnv(n_markets, prob_model, cfg, max_pos=max_pos)
     strategies = {
         "PPO agent (RL)": rl_policy(agent),
+        "PPO + EV guardrail": guarded_rl_policy(agent),
         "EV threshold": ev_threshold_policy(0.02),
         "Half Kelly": kelly_policy(0.5),
     }

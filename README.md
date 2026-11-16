@@ -23,6 +23,7 @@ pytest -q                               # 8 tests, incl. gradient checks
 | Strategy | PnL / market | ROI on capital | Sharpe / market | t-stat |
 |---|---|---|---|---|
 | **PPO agent (RL)** | **$8.17** | **8.2%** | **0.215** | 11.8 |
+| PPO + EV guardrail | $8.06 | 8.1% | 0.213 | 11.7 |
 | EV threshold (tuned at 2¢) | $6.24 | 6.2% | 0.154 | 8.4 |
 | Half Kelly | $0.67 | 0.7% | 0.155 | 8.5 |
 
@@ -41,13 +42,19 @@ These numbers come from 3,000 unseen markets (seed 12345). The EV-threshold base
 - **Reward trick:** realised PnL splits exactly into *edge captured on each fill* plus a *zero-mean martingale term* (the coin flip at settlement). Training on just the first part has the same expected reward with much lower variance. Training on raw PnL made the agent collapse to "never trade". `tests/test_core.py` checks this split exactly. The true probability is used only to compute the training reward and is never part of the agent's inputs. Backtests always report real mark-to-market PnL.
 - **PPO setup:** clipped surrogate, GAE, an entropy schedule from 0.10 to 0.002, and an LR schedule. Actor and critic gradients are derived by hand and checked against finite differences.
 
+**EV guardrail (`pricing.ev_guardrail`).** The agent's decision passes through a hard check before it becomes an order: it may only add YES contracts when buying YES has positive after-fee EV, and only add NO contracts when buying NO does (or more than `min_edge`, if you set one). Selling what it already holds, back toward flat, is always allowed, because that reduces risk rather than placing a new bet. A flip from YES to NO is split: the sale goes through, and the new NO purchase only if NO has edge.
+
+- **Why it exists:** the agent was trained only on simulated prices between 1.5¢ and 98.5¢ with a 2¢ spread. On a live Kalshi market quoted 99¢ / $1.00, it picked "Buy 25 YES", a trade that can't make money (see [What real runs looked like](#what-real-runs-looked-like-nov-2026)). The guardrail turns that into "No trade".
+- **What it costs:** in the simulator the agent sometimes buys without edge at the current price, expecting the mispricing to correct, and that pays slightly. With the guardrail, PnL per market is $8.06 instead of $8.17, and the agent trades 553,100 contracts instead of 598,475. It still beats both rule-based baselines by a wide margin.
+- **Where it applies:** `/api/recommend` and both examples, on by default. Pass `"ev_guardrail": false` to see the raw agent. The backtest reports both versions.
+
 ## API
 
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/price` | Model probability, fair value, EV, ROI and Kelly for YES and NO |
-| POST | `/api/recommend` | `/api/price` plus the RL agent's action, its action probabilities and the concrete order (e.g. "Sell 100 YES, then Buy 50 NO") |
-| POST | `/api/backtest` | RL agent vs. baselines on N fresh markets |
+| POST | `/api/recommend` | `/api/price` plus the RL agent's action, its action probabilities and the concrete order (e.g. "Sell 100 YES, then Buy 50 NO"), after the EV guardrail. `agent_action` and `agent_target_position` show the raw pick, and `guardrail.reason` says what was blocked. |
+| POST | `/api/backtest` | RL agent (raw and guarded) vs. baselines on N fresh markets |
 | GET | `/api/simulate?seed=` | One market path with the agent's trades |
 | POST | `/api/train`, `/api/train/stop`; GET `/api/train/status` | Background training, with a live learning curve |
 | GET | `/api/model` | Configs and training history |
@@ -128,10 +135,10 @@ python examples/scan_nba.py 26NOV16 scan_out/
 | Run | Result |
 |---|---|
 | NHL, Vancouver at Vegas, mid-game, Vancouver YES 73¢ / 74¢ | Model 76.0%, EV of buying YES +0.7¢. No strategy traded, either at that moment or anywhere in the replay. |
-| NBA, Oklahoma City at Sacramento, late in the game, OKC YES 99¢ / $1.00 | EV negative on both sides (−0.72¢ YES, −0.35¢ NO), yet the PPO agent picked **Buy 25 YES** at $1.00, a trade that can't make money. See below. |
+| NBA, Oklahoma City at Sacramento, late in the game, OKC YES 99¢ / $1.00 | EV negative on both sides (−0.72¢ YES, −0.35¢ NO), yet the raw PPO agent picked **Buy 25 YES** at $1.00, a trade that can't make money. This run led to the [EV guardrail](#how-it-works), which now returns "No trade" here. `tests/test_guardrail.py` checks this case. |
 | NBA slate scan for Nov 16, 8 games and 16 markets | No game had a positive-EV bet. The best was −0.96¢ per contract, and no time-left setting gave more than +1.12¢. |
 
-**Known limitation: the PPO agent doesn't check EV.** In training, simulated prices stay between 1.5¢ and 98.5¢ with a 2¢ spread, so the agent never saw a $1.00 ask. Outside that range its picks can't be trusted. Before acting on an agent recommendation, require positive after-fee EV on the side it buys: `pricing.ev_yes` or `pricing.ev_no` from `/api/recommend`.
+The guardrail stops trades with no edge at the current price. It can't make the agent's picks reliable outside the conditions it was trained on: very wide spreads, prices near 0 or 1, or real-market dynamics that differ from the simulator.
 
 ## Layout
 
