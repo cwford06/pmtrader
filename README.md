@@ -66,9 +66,24 @@ Prices can be in any unit as long as `payout` matches. For example, Kalshi cents
 - **Check the fee setting.** `fee_rate` is a smooth approximation. Kalshi rounds fees up to the cent, which matters a lot for small orders. Polymarket is mostly fee-free, so set `fee_rate: 0` there.
 - **Things not modeled:** order-book depth and slippage beyond the quoted spread, correlated markets and portfolio-level risk.
 
+## Examples: live Kalshi data
+
+Two scripts in `examples/` run the models on real markets from Kalshi's public API. They need no API key and place no orders. Run them from the repo root.
+
+```bash
+# One market, priced now and replayed since the game started
+python examples/live_kalshi.py KXNHLGAME-26NOV15VANVGK-VAN KXNHLGAME 2026-11-16T02:12:00Z out.json
+
+# Every NBA game on a date (YYMONDD), ranked by after-fee EV, with a sensitivity check
+python examples/scan_nba.py 26NOV16 out/
+```
+
+Both feed the model only the market's own prices and no outside forecast, so expect few or no trades. The models were trained on simulated markets, so treat the output as a demonstration, not a signal.
+
 ## Layout
 
 ```
+examples/        live Kalshi runner and NBA slate scanner
 pmtrader/
   pricing.py     EV, fees, Kelly
   simulator.py   synthetic markets

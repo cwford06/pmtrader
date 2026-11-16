@@ -6,7 +6,3 @@ __pycache__/
 
 # macOS
 .DS_Store
-
-# ccml: downloaded data and large generated files (rebuild with: python -m ccml.run all)
-ccml/data/
-ccml/output/*.pkl
